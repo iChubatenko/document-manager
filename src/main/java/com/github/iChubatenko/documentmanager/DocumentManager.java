@@ -25,7 +25,7 @@ public class DocumentManager {
             Document existing = storage.get(document.getId());
             Instant created = ofNullable(existing)
                     .map(Document::getCreated)
-                    .orElseGet(() -> ofNullable(document.getCreated()).orElse(Instant.now()));
+                    .orElse(Instant.now());
             document.setCreated(created);
         }
 
