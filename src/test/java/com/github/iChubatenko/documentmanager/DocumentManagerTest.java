@@ -16,12 +16,12 @@ class DocumentManagerTest {
     private DocumentManager manager;
 
     @BeforeEach
-     void setUp(){
+    void setUp() {
         manager = new DocumentManager();
     }
 
     @Test
-    void save_shouldAssignIdAndCreated_ifNewDocument(){
+    void save_shouldAssignIdAndCreated_ifNewDocument() {
         DocumentManager.Document document = DocumentManager.Document.builder()
                 .title("Doc Title")
                 .content("Some content")
@@ -37,13 +37,13 @@ class DocumentManagerTest {
     }
 
     @Test
-    void save_shouldPreserveCreated_ifDocumentAlreadyExists(){
+    void save_shouldPreserveCreated_ifDocumentAlreadyExists() {
         DocumentManager.Document doc1 = DocumentManager.Document.builder()
                 .id("123")
                 .title("Original")
                 .content("Content")
                 .author(DocumentManager.Author.builder().id("a1").name("Author").build())
-                .created(Instant.parse("2025-01-01T10:00:00+02:00"))
+                .created(Instant.parse("2025-01-01T10:00:00Z"))
                 .build();
 
         manager.save(doc1);
@@ -60,11 +60,11 @@ class DocumentManagerTest {
         assertEquals("Updated", result.getTitle());
         assertEquals("Updated content", result.getContent());
         assertEquals("123", result.getId());
-        assertEquals(Instant.parse("2025-01-01T10:00:00+02:00"), result.getCreated());
+        assertEquals(Instant.parse("2025-01-01T10:00:00Z"), result.getCreated());
     }
 
     @Test
-    void findById_shouldReturnDocument_ifExists(){
+    void findById_shouldReturnDocument_ifExists() {
         DocumentManager.Document doc = DocumentManager.Document.builder()
                 .title("Find me")
                 .build();
@@ -77,7 +77,7 @@ class DocumentManagerTest {
     }
 
     @Test
-    void findById_shouldReturnEmpty_ifNotExists(){
+    void findById_shouldReturnEmpty_ifNotExists() {
         assertFalse(manager.findById("nonexistent").isPresent());
     }
 
@@ -157,7 +157,7 @@ class DocumentManagerTest {
     }
 
     @Test
-    void search_shouldReturnAll_ifNoCriteria(){
+    void search_shouldReturnAll_ifNoCriteria() {
         manager.save(DocumentManager.Document.builder().title("1").build());
         manager.save(DocumentManager.Document.builder().title("2").build());
 
@@ -167,4 +167,43 @@ class DocumentManagerTest {
         assertEquals(2, results.size());
     }
 
+    @Test
+    void search_shouldReturnDocumentMatchingMultipleCriteria() {
+        DocumentManager.Author author = DocumentManager.Author.builder()
+                .id("author1")
+                .name("Petro Petrenko")
+                .build();
+
+        DocumentManager.Document doc = DocumentManager.Document.builder()
+                .id("1")
+                .title("Java Streams")
+                .content("This document explains Java Streams API in detail")
+                .author(author)
+                .created(Instant.parse("2025-04-01T10:00:00Z"))
+                .build();
+
+        manager.save(doc);
+
+        manager.save(DocumentManager.Document.builder()
+                .id("2")
+                .title("Python Guide")
+                .content("Different language")
+                .author(DocumentManager.Author.builder().id("author2").name("Someone Else").build())
+                .created(Instant.parse("2024-10-01T10:00:00Z"))
+                .build());
+
+        DocumentManager.SearchRequest request = DocumentManager.SearchRequest.builder()
+                .titlePrefixes(List.of("Java"))
+                .containsContents(List.of("Stream"))
+                .authorIds(List.of("author1"))
+                .createdFrom(Instant.parse("2024-12-01T00:00:00Z"))
+                .createdTo(Instant.parse("2025-12-31T23:59:59Z"))
+                .build();
+
+        List<DocumentManager.Document> result = manager.search(request);
+
+        assertEquals(1, result.size());
+        assertEquals("1", result.get(0).getId());
+        assertEquals("Java Streams", result.get(0).getTitle());
+    }
 }

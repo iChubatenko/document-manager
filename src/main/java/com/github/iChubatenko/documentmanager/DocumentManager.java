@@ -9,21 +9,24 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import static java.util.Optional.*;
+
 public class DocumentManager {
 
     private final Map<String, Document> storage = new ConcurrentHashMap<>();
 
     public Document save(Document document) {
         if (document.getId() == null || document.getId().isEmpty()) {
-            String id = UUID.randomUUID().toString();
-            document.setId(id);
-        }
-
-        Document existing = storage.get(document.getId());
-        if (existing != null) {
-            document.setCreated(existing.getCreated());
-        } else if (document.getCreated() == null) {
-            document.setCreated(Instant.now());
+            document.setId(UUID.randomUUID().toString());
+            if (document.getCreated() == null) {
+                document.setCreated(Instant.now());
+            }
+        } else {
+            Document existing = storage.get(document.getId());
+            Instant created = ofNullable(existing)
+                    .map(Document::getCreated)
+                    .orElseGet(() -> ofNullable(document.getCreated()).orElse(Instant.now()));
+            document.setCreated(created);
         }
 
         storage.put(document.getId(), document);
@@ -32,34 +35,34 @@ public class DocumentManager {
 
     public List<Document> search(SearchRequest request) {
         return storage.values().stream()
-                .filter(doc -> Optional.ofNullable(request.getTitlePrefixes())
+                .filter(doc -> ofNullable(request.getTitlePrefixes())
                         .map(prefixes -> prefixes.stream()
-                                .anyMatch(prefix -> Optional.ofNullable(doc.getTitle())
+                                .anyMatch(prefix -> ofNullable(doc.getTitle())
                                         .map(t -> t.startsWith(prefix))
                                         .orElse(false)))
                         .orElse(true))
 
-                .filter(doc -> Optional.ofNullable(request.getContainsContents())
+                .filter(doc -> ofNullable(request.getContainsContents())
                         .map(contents -> contents.stream()
-                                .anyMatch(sub -> Optional.ofNullable(doc.getContent())
+                                .anyMatch(sub -> ofNullable(doc.getContent())
                                         .map(c -> c.contains(sub))
                                         .orElse(false)))
                         .orElse(true))
 
-                .filter(doc -> Optional.ofNullable(request.getAuthorIds())
-                        .map(ids -> Optional.ofNullable(doc.getAuthor())
+                .filter(doc -> ofNullable(request.getAuthorIds())
+                        .map(ids -> ofNullable(doc.getAuthor())
                                 .map(author -> ids.contains(author.getId()))
                                 .orElse(false))
                         .orElse(true))
 
-                .filter(doc -> Optional.ofNullable(request.getCreatedFrom())
-                        .map(from -> Optional.ofNullable(doc.getCreated())
+                .filter(doc -> ofNullable(request.getCreatedFrom())
+                        .map(from -> ofNullable(doc.getCreated())
                                 .map(created -> !created.isBefore(from))
                                 .orElse(false))
                         .orElse(true))
 
-                .filter(doc -> Optional.ofNullable(request.getCreatedTo())
-                        .map(to -> Optional.ofNullable(doc.getCreated())
+                .filter(doc -> ofNullable(request.getCreatedTo())
+                        .map(to -> ofNullable(doc.getCreated())
                                 .map(created -> !created.isAfter(to))
                                 .orElse(false))
                         .orElse(true))
@@ -68,7 +71,7 @@ public class DocumentManager {
     }
 
     public Optional<Document> findById(String id) {
-        return Optional.ofNullable(storage.get(id));
+        return ofNullable(storage.get(id));
     }
 
     @Data
