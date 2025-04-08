@@ -32,36 +32,38 @@ public class DocumentManager {
 
     public List<Document> search(SearchRequest request) {
         return storage.values().stream()
-                .filter(doc -> {
-                    if (request.getTitlePrefixes() != null && !request.getTitlePrefixes().isEmpty()) {
-                        boolean matches = request.getTitlePrefixes().stream()
-                                .anyMatch(prefix -> doc.getTitle() != null && doc.getTitle().startsWith(prefix));
-                        if (!matches) return false;
-                    }
+                .filter(doc -> Optional.ofNullable(request.getTitlePrefixes())
+                        .map(prefixes -> prefixes.stream()
+                                .anyMatch(prefix -> Optional.ofNullable(doc.getTitle())
+                                        .map(t -> t.startsWith(prefix))
+                                        .orElse(false)))
+                        .orElse(true))
 
-                    if (request.getContainsContents() != null && !request.getContainsContents().isEmpty()) {
-                        boolean matches = request.getContainsContents().stream()
-                                .anyMatch(substring -> doc.getContent() != null && doc.getContent().contains(substring));
-                        if (!matches) return false;
-                    }
+                .filter(doc -> Optional.ofNullable(request.getContainsContents())
+                        .map(contents -> contents.stream()
+                                .anyMatch(sub -> Optional.ofNullable(doc.getContent())
+                                        .map(c -> c.contains(sub))
+                                        .orElse(false)))
+                        .orElse(true))
 
-                    if (request.getAuthorIds() != null && !request.getAuthorIds().isEmpty()) {
-                        if (doc.getAuthor() == null || !request.getAuthorIds().contains(doc.getAuthor().getId())) {
-                            return false;
-                        }
-                    }
+                .filter(doc -> Optional.ofNullable(request.getAuthorIds())
+                        .map(ids -> Optional.ofNullable(doc.getAuthor())
+                                .map(author -> ids.contains(author.getId()))
+                                .orElse(false))
+                        .orElse(true))
 
-                    if (request.getCreatedFrom() != null && doc.getCreated() != null &&
-                            doc.getCreated().isBefore(request.getCreatedFrom())) {
-                        return false;
-                    }
+                .filter(doc -> Optional.ofNullable(request.getCreatedFrom())
+                        .map(from -> Optional.ofNullable(doc.getCreated())
+                                .map(created -> !created.isBefore(from))
+                                .orElse(false))
+                        .orElse(true))
 
-                    if (request.getCreatedTo() != null && doc.getCreated() != null &&
-                            doc.getCreated().isAfter(request.getCreatedTo())) {
-                        return false;
-                    }
-                    return true;
-                })
+                .filter(doc -> Optional.ofNullable(request.getCreatedTo())
+                        .map(to -> Optional.ofNullable(doc.getCreated())
+                                .map(created -> !created.isAfter(to))
+                                .orElse(false))
+                        .orElse(true))
+
                 .collect(Collectors.toList());
     }
 
